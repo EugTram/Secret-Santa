@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Secret Santa</title>
+<script>
+/* ================== CONFIGURAZIONE ==================
+   Incolla qui i due valori del tuo progetto Supabase
+   (Project Settings → API / Data API). Vedi LEGGIMI.md */
+const SUPABASE_URL = 'https://rqzuafxhjyrjblfpvrja.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_WfwTxMmdGweAc3YE9KLnrA_8I8dJHSb';
+/* ==================================================== */
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: warm, playful, tidy — a party sign-up, not a form
+   IDEA: a paper gift tag on a string; the reveal is the tag you turn over
+   PICTURE: the live card (join form / your tag) plus the garland of name tags
+   COLOUR and TYPE: pine green field, berry red accent, gold string; DM Serif Display + Nunito Sans
+   LAYOUT: pine band with title and garland, then card left / list right, organiser panel below */
+:root{color-scheme:light dark;
+--bg:light-dark(#f7f4ef,#0c1f19);--card:light-dark(#ffffff,#14302a);--ink:light-dark(#18231f,#eef3ef);
+--mut:light-dark(#5c6b64,#a9bdb4);--line:light-dark(#e3ddd2,#26473e);
+--pine:#0f3b2e;--pine2:#165141;--red:#c8243a;--red2:light-dark(#a81c30,#ff6b7c);--gold:#e8b64c}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Nunito Sans",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(28px,4vw,56px) max(5vw,16px)}
+.wrap{max-width:1180px;margin:0 auto}
+header.band{background:var(--pine);color:#f3efe6;position:relative;overflow:hidden;padding-top:clamp(70px,9vw,110px)}
+.garland{position:absolute;inset:0 0 auto 0;height:90px;width:100%;pointer-events:none}
+h1{font:400 clamp(34px,5.4vw,52px)/1.05 "DM Serif Display",Georgia,serif;margin:0 0 14px;text-wrap:balance}
+h2{font:400 26px/1.15 "DM Serif Display",Georgia,serif;margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:6px 14px;font-weight:600;font-size:15px;white-space:nowrap}
+.chip b{color:var(--gold)}
+main .grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
+@media(max-width:760px){main .grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(20px,3vw,32px);box-shadow:0 1px 0 var(--line),0 12px 30px -18px rgba(0,0,0,.35)}
+.mut{color:var(--mut)}.small{font-size:14px}
+label{display:block;font-weight:700;margin:16px 0 6px}
+input,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px}
+textarea{min-height:88px;resize:vertical}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button{font:inherit;font-weight:800;min-height:44px;padding:10px 18px;border-radius:12px;border:0;cursor:pointer}
+.btn{background:var(--red);color:#fff}.btn:hover{filter:brightness(1.08)}
+.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn[disabled],.ghost[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
+.msg{margin-top:12px;font-weight:600;color:var(--red2);min-height:1.5em}
+.ok{display:inline-flex;gap:8px;align-items:center;background:light-dark(#e6f2ec,#1d3d34);color:light-dark(#165141,#9fe0c4);padding:6px 12px;border-radius:99px;font-weight:800;font-size:15px}
+/* tag */
+.tagbox{perspective:1200px;margin:8px auto 0;max-width:420px}
+.tag{position:relative;height:250px;transition:transform .8s cubic-bezier(.3,1.3,.5,1);transform-style:preserve-3d}
+.tag.open{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;border-radius:18px 18px 18px 18px;clip-path:polygon(16% 0,100% 0,100% 100%,16% 100%,0 50%);padding:26px 26px 26px 22%;display:flex;flex-direction:column;justify-content:center}
+.front{background:var(--red);color:#fff}
+.back{background:var(--gold);color:#2a1d05;transform:rotateY(180deg)}
+.hole{position:absolute;left:7%;top:50%;width:18px;height:18px;margin-top:-9px;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 3px rgba(0,0,0,.15)}
+.who{font:400 clamp(32px,6vw,46px)/1.05 "DM Serif Display",Georgia,serif;overflow-wrap:anywhere}
+.wish{margin-top:14px;padding:14px 16px;border-radius:12px;background:var(--bg);border:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
+/* list */
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.list li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.dot{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--pine2)}
+.list .n{flex:1;font-weight:700;overflow-wrap:anywhere}
+.x{min-height:36px;padding:4px 12px;background:transparent;color:var(--mut);border:1px solid var(--line);font-size:14px}
+.empty{padding:22px;text-align:center;border:1.5px dashed var(--line);border-radius:12px}
+.admin{border-top:4px solid var(--gold)}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:600px){.three{grid-template-columns:minmax(0,1fr)}}
+.confirm{margin-top:14px;padding:16px;border-radius:12px;background:light-dark(#fff4e0,#33290f);border:1px solid var(--gold)}
+/* intro + talking puppet */
+.intro{position:fixed;inset:0;z-index:50;background:radial-gradient(ellipse at 50% 30%,#1c5a47,#0a2a20 70%);color:#fff;display:grid;place-items:center;overflow:hidden;padding:20px;transition:opacity .5s}
+.intro.out{opacity:0;pointer-events:none}
+.stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:16px;width:min(560px,100%)}
+.puppet{width:min(320px,70vw);aspect-ratio:1;border-radius:28px;overflow:hidden;border:6px solid var(--gold);box-shadow:0 0 0 6px var(--red),0 24px 50px -10px rgba(0,0,0,.6);background:#2b0a0a;animation:bob 1.6s ease-in-out infinite}
+.puppet svg{display:block;width:100%;height:100%}
+.jaw{transition:transform 70ms linear}
+.jaw.open{transform:translateY(22px)}
+@keyframes bob{50%{transform:translateY(-6px) rotate(-1.5deg)}}
+.bubble{position:relative;background:#fff;color:#1b1b1b;border-radius:22px;padding:16px 22px;font:400 clamp(22px,4.2vw,30px)/1.2 "DM Serif Display",Georgia,serif;min-height:1.2em;text-align:center;box-shadow:0 6px 0 #c8243a;max-width:100%;visibility:hidden}
+.bubble.on{visibility:visible}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-18px;margin-left:-14px;border:14px solid transparent;border-top-color:#fff;border-bottom:0;filter:drop-shadow(0 6px 0 #c8243a)}
+.intro .btn{font-size:19px;padding:14px 26px;box-shadow:0 5px 0 #7d1424}
+.linkbox{margin:16px 0 4px;padding:16px;border-radius:14px;background:light-dark(#fff4e0,#33290f);border:1px solid var(--gold)}
+.lrow{display:flex;gap:8px;flex-wrap:wrap}.lrow input{flex:1 1 200px;font-size:14px}
+code{font-size:.9em}
+.mute{position:fixed;right:16px;bottom:16px;z-index:60;width:48px;height:48px;min-height:48px;padding:0;border-radius:50%;background:var(--gold);color:#2a1d05;font-size:22px;box-shadow:0 4px 0 #9b7424}
+.iform{display:flex;flex-wrap:wrap;gap:10px;width:min(440px,100%);justify-content:center}
+.iform input{flex:1 1 220px;background:#fff;color:#18231f;border:3px solid var(--gold);font-size:18px;padding:12px 16px}
+.imsg{flex-basis:100%;text-align:center;font-weight:700;color:#ffd7dc;min-height:1.4em}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.intro .skip{background:none;border:0;color:#cfe3da;font-weight:600;text-decoration:underline;min-height:44px}
+.flake{position:absolute;top:-12px;width:8px;height:8px;background:#fff;opacity:.85;animation:fall linear infinite}
+@keyframes fall{to{transform:translateY(110vh)}}
+.mini{display:flex;flex-direction:column;align-items:center;gap:14px;margin:6px 0 18px}
+.mini .puppet{width:170px;border-width:4px;box-shadow:0 0 0 4px var(--red)}
+.mini .bubble{font-size:22px;box-shadow:0 4px 0 #c8243a;border:1px solid var(--line)}
+.replay{background:none;border:1px solid rgba(255,255,255,.3);color:#f3efe6;border-radius:99px;font-weight:600;font-size:15px;min-height:36px;padding:6px 14px}
+@media(prefers-reduced-motion:reduce){.tag{transition:none}.puppet,.flake{animation:none}}
+</style>
+</head>
+<body>
+<button class="mute" id="muteB" aria-label="Spegni la musica">🔊</button>
+<div class="intro" id="intro" role="dialog" aria-label="Benvenuto">
+  <div id="snow" aria-hidden="true"></div>
+  <div class="stage">
+    <div class="bubble" id="introBubble"></div>
+    <div id="introPuppet"></div>
+    <button class="btn" id="startB">▶ Accendi sto cazzo di Natale</button>
+    <form id="introForm" class="iform" hidden>
+      <label for="iName" class="sr">Il tuo nome</label>
+      <input id="iName" maxlength="40" placeholder="Il tuo nome" autocomplete="name">
+      <button class="btn" id="iJoin">Iscrivimi</button>
+      <div class="imsg" id="iMsg"></div>
+    </form>
+    <button class="btn" id="enterB" hidden>Entra →</button>
+  </div>
+</div>
+<header class="band">
+  <svg class="garland" viewBox="0 0 1200 90" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 14 Q300 70 600 30 T1200 18" fill="none" stroke="#e8b64c" stroke-width="2"/>
+    <g id="tags"></g>
+  </svg>
+  <div class="wrap">
+    <h1 id="title">Secret Santa</h1>
+    <div class="chips" id="chips"></div>
+    <p style="margin:14px 0 0"><button class="replay" id="replayB">▶ Rivedi l'intro</button></p>
+  </div>
+</header>
+
+<main class="band">
+  <div class="wrap">
+    <div class="grid">
+      <section class="card" id="mainCard" aria-live="polite"><p class="mut">Caricamento…</p></section>
+      <section class="card">
+        <h2>Chi partecipa</h2>
+        <p class="mut small" id="listNote">I nomi sono visibili a tutti, gli abbinamenti no.</p>
+        <ul class="list" id="list"></ul>
+      </section>
+    </div>
+    <section class="card admin" id="admin" hidden style="margin-top:24px"></section>
+  </div>
+</main>
+
+<script>
+/* ---------- talking puppet + 8-bit jingle (shared) ---------- */
+const App = {};
+const Puppet = (() => {
+  let n = 0, ac = null;
+  const JAW = '250,334 300,339 350,339 396,332 414,470 404,560 246,560 234,470';
+  function make(host){
+    const id = 'jc' + (++n);
+    host.innerHTML = `<div class="puppet"><svg viewBox="0 0 640 640" aria-hidden="true">
+      <defs><clipPath id="${id}"><polygon points="${JAW}"/></clipPath>
+      <linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0505"/><stop offset=".25" stop-color="#5a1414"/></linearGradient></defs>
+      <image href="face.jpg" width="640" height="640"/>
+      <polygon points="${JAW}" fill="url(#g${id})"/>
+      <g class="jaw"><image href="face.jpg" width="640" height="640" clip-path="url(#${id})"/>
+        <polyline points="250,334 234,470 246,560" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="3"/>
+        <polyline points="396,332 414,470 404,560" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="3"/>
+      </g></svg></div>`;
+    return host.querySelector('.jaw');
+  }
+  let master = null, looping = false, muted = false;
+  function audio(){
+    try {
+      if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = muted ? 0 : 1; master.connect(ac.destination); }
+      if (ac.state === 'suspended') ac.resume();
+    } catch { ac = null; }
+    return ac;
+  }
+  function setMuted(m){ muted = m; if (master) master.gain.setTargetAtTime(m ? 0 : 1, ac.currentTime, .05); }
+  function tone(type, f, t, d, v){
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+    o.connect(g).connect(master); o.start(t); o.stop(t + d + .02);
+  }
+  function bell(t){
+    const len = ac.sampleRate * .06, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    f.type = 'highpass'; f.frequency.value = 7000; g.gain.value = .12;
+    s.buffer = b; s.connect(f).connect(g).connect(master); s.start(t);
+  }
+  /* Jingle Bells (public domain, 1857), chiptune arrangement */
+  const F = {C:523.25,D:587.33,E:659.25,F:698.46,G:783.99};
+  const A = 'E1 E1 E2 E1 E1 E2 E1 G1 C1.5 D.5 E4 F1 F1 F1.5 F.5 F1 E1 E1 E.5 E.5';
+  const MEL = (A + ' E1 D1 D1 E1 D2 G2 ' + A + ' G1 G1 F1 D1 C4').split(' ').map(x => [x[0], parseFloat(x.slice(1))]);
+  const ROOTS = [131,131,131,131,175,131,147,196, 131,131,131,131,175,131,196,131];
+  const Q = .27;
+  /* schedule one full round starting at t0; returns when it ends */
+  function cycle(t0){
+    let t = t0;
+    for (const [nn, b] of MEL){ tone('square', F[nn], t, b * Q * .9, .07); t += b * Q; }
+    ROOTS.forEach((r, i) => { for (let k = 0; k < 4; k++){
+      const tt = t0 + (i * 4 + k) * Q;
+      tone('triangle', k % 2 ? r * 1.5 : r, tt, Q * .8, .16); bell(tt + Q / 2);
+    }});
+    return t0 + ROOTS.length * 4 * Q;
+  }
+  /* endless loop: each round is queued shortly before the previous one ends */
+  function jingle(){
+    if (!audio() || looping) return;
+    looping = true;
+    let next = cycle(ac.currentTime + .08);
+    setInterval(() => { if (ac.currentTime > next - 2) next = cycle(next); }, 400);
+  }
+  function blip(){
+    if (!ac || ac.state !== 'running') return;
+    tone('square', 380 + Math.random() * 260, ac.currentTime, .05, .035);
+  }
+  function say(jaw, bubble, text, done){
+    bubble.textContent = ''; bubble.classList.add('on');
+    clearInterval(jaw._t); let i = 0;
+    jaw._t = setInterval(() => {
+      if (i >= text.length){ clearInterval(jaw._t); jaw.classList.remove('open'); done && done(); return; }
+      const ch = text[i++]; bubble.textContent += ch;
+      if (/[aeiouàèéìòù]/i.test(ch)) { jaw.classList.add('open'); blip(); }
+      else if (/[\s.,!?…]/.test(ch)) jaw.classList.remove('open');
+      else jaw.classList.toggle('open', Math.random() < .35);
+    }, 75);
+  }
+  return {make, say, jingle, audio, setMuted, isMuted: () => muted};
+})();
+
+{ /* intro */
+  const $ = s => document.querySelector(s);
+  const intro = $('#intro'), bub = $('#introBubble'), start = $('#startB');
+  const jaw = Puppet.make($('#introPuppet'));
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    let h = '';
+    for (let i = 0; i < 40; i++) h += `<i class="flake" style="left:${Math.random()*100}%;animation-duration:${6+Math.random()*8}s;animation-delay:-${Math.random()*10}s;width:${3+Math.random()*6}px;height:${3+Math.random()*6}px"></i>`;
+    $('#snow').innerHTML = h;
+  }
+  const form = $('#introForm'), enter = $('#enterB'), iName = $('#iName'), iMsg = $('#iMsg');
+  const WELCOME = 'Benvenuti al Secret Santa di Via del Bianco Spino V&P!';
+  const SANTA = 'Questo non è un incubo: sono Babbo Natale come lo immaginavi da piccino! AHAHAHAH! In qualità di Capo Supremo del Natale, ti ordino di scrivere il tuo nome qui sotto! (per Tambu: la x non vale)';
+  const close = () => { intro.classList.add('out'); setTimeout(() => { intro.hidden = true; }, 500); };
+
+  /* Jingle on the first screen: start now if the browser allows it,
+     otherwise on the very first touch/click/key anywhere on the page. */
+  function music(){
+    Puppet.jingle();
+    const ac = Puppet.audio();
+    if (ac && ac.state !== 'running') {
+      const unlock = () => { ac.resume(); ['pointerdown','touchstart','keydown'].forEach(t => document.removeEventListener(t, unlock, true)); };
+      ['pointerdown','touchstart','keydown'].forEach(t => document.addEventListener(t, unlock, true));
+    }
+  }
+  function screen1(){
+    start.hidden = false; form.hidden = true; enter.hidden = true;
+    music();
+    setTimeout(() => Puppet.say(jaw, bub, WELCOME), 400);
+  }
+  function screen2(){
+    start.hidden = true;
+    const s = App.status ? App.status() : {};
+    const stage = intro.querySelector('.stage');
+    stage.style.transition = 'opacity .35s'; stage.style.opacity = 0;
+    setTimeout(() => {
+      clearInterval(jaw._t); bub.textContent = ''; bub.classList.remove('on');
+      if (s.closed && s.receiver) {
+        enter.hidden = false;
+        Puppet.say(jaw, bub, `Ciao ${s.meName}! Il tuo regalo è per… ${s.receiver}! AHAHAHAH!`);
+      } else if (s.closed) {
+        enter.hidden = false;
+        Puppet.say(jaw, bub, 'Le iscrizioni sono chiuse! AHAHAHAH!');
+      } else if (s.joined) {
+        enter.hidden = false;
+        Puppet.say(jaw, bub, `Ciao ${s.meName}, sei già nella lista! AHAHAHAH! Una volta chiusa l’iscrizione ti darò indicazioni!`);
+      } else {
+        if (s.myEntry && !iName.value) iName.value = s.myEntry;
+        else if (s.name && !iName.value) iName.value = s.name;
+        form.hidden = false;
+        Puppet.say(jaw, bub, SANTA);
+      }
+      stage.style.opacity = 1;
+    }, 380);
+  }
+  start.addEventListener('click', screen2);
+  enter.addEventListener('click', close);
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = iName.value.trim();
+    if (!name) { iMsg.textContent = 'Il nome, ho detto!'; return; }
+    if (/^[x×.\-_ ]+$/i.test(name)) { iMsg.textContent = ''; Puppet.say(jaw, bub, 'Tambu! Ho detto che la x non vale! AHAHAHAH!'); iName.value = ''; iName.focus(); return; }
+    if (!App.join) { iMsg.textContent = 'Un attimo, sto ancora caricando…'; return; }
+    iMsg.textContent = 'Lo scrivo sulla mia lista…';
+    const err = await App.join(name);
+    if (err) { iMsg.textContent = err; return; }
+    form.hidden = true; iMsg.textContent = '';
+    Puppet.say(jaw, bub, 'Perfetto, sei nella lista! AHAHAHAH! Una volta chiusa l’iscrizione ti darò indicazioni!', () => setTimeout(close, 2000));
+  });
+  $('#muteB').addEventListener('click', e => {
+    e.stopPropagation();
+    const m = !Puppet.isMuted(); Puppet.setMuted(m);
+    $('#muteB').textContent = m ? '🔇' : '🔊';
+    $('#muteB').setAttribute('aria-label', m ? 'Accendi la musica' : 'Spegni la musica');
+  });
+  $('#replayB').addEventListener('click', () => {
+    intro.hidden = false; requestAnimationFrame(() => intro.classList.remove('out'));
+    bub.classList.remove('on'); screen1();
+  });
+  screen1();
+}
+
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clip = (s, n) => String(s || '').trim().slice(0, n);
+const store = {
+  get(k){ try { return localStorage.getItem(k) || ''; } catch { return ''; } },
+  set(k, v){ try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} }
+};
+const configured = /^https?:\/\//.test(SUPABASE_URL) && SUPABASE_KEY && !/INCOLLA/.test(SUPABASE_KEY);
+
+async function rpc(fn, args = {}){
+  const h = {'apikey': SUPABASE_KEY, 'Content-Type': 'application/json'};
+  if (!SUPABASE_KEY.startsWith('sb_')) h.Authorization = 'Bearer ' + SUPABASE_KEY;
+  const r = await fetch(SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/rpc/' + fn, {method: 'POST', headers: h, body: JSON.stringify(args)});
+  const t = await r.text(); let d = null;
+  try { d = t ? JSON.parse(t) : null; } catch {}
+  if (!r.ok) throw new Error(d?.message || ('Errore ' + r.status));
+  return d;
+}
+
+/* personal code: from ?t=… in the link, else remembered in this browser */
+let token = '';
+{
+  const q = new URLSearchParams(location.search).get('t');
+  if (q && /^[0-9a-f]{20,64}$/.test(q)) {
+    token = q; store.set('ss_token', q);
+    /* hide the code from the address bar so nobody shares it by mistake */
+    try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])t=[^&]*&?/, '$1').replace(/[?&]$/, '') + location.hash); } catch {}
+  }
+  else token = store.get('ss_token');
+}
+const isAdminView = new URLSearchParams(location.search).has('admin') || location.hash === '#admin';
+let adminPass = ''; try { adminPass = sessionStorage.getItem('ss_admin') || ''; } catch {}
+let isAdmin = false;
+
+let state = {title: 'Secret Santa', budget: '', date: '', status: 'open', participants: []};
+let me = null, loaded = false, mode = '', busy = false, confirmKind = '';
+const myLink = () => location.origin + location.pathname + '?t=' + token;
+
+/* garland tags (decor) */
+{
+  const g = $('#tags'); let h = '';
+  [90,250,420,600,780,950,1110].forEach((x, i) => {
+    const y = 14 + Math.sin(x / 1200 * Math.PI) * 30;
+    const c = ['#c8243a','#e8b64c','#f3efe6'][i % 3];
+    h += `<g transform="translate(${x} ${y}) rotate(${i % 2 ? 8 : -8})"><line x1="0" y1="0" x2="0" y2="12" stroke="#e8b64c"/><path d="M-9 12h18v26h-18z M-9 12 l9 -6 l9 6" fill="${c}"/></g>`;
+  });
+  g.innerHTML = h;
+}
+
+function renderHero(){
+  const t = clip(state.title, 80) || 'Secret Santa';
+  $('#title').textContent = t; document.title = t;
+  const chips = [];
+  if (state.budget) chips.push(`<span class="chip">Budget <b>${esc(clip(state.budget,30))}</b></span>`);
+  if (state.date) chips.push(`<span class="chip">Scambio <b>${esc(clip(state.date,40))}</b></span>`);
+  chips.push(`<span class="chip"><b>${state.participants.length}</b> iscritti</span>`);
+  chips.push(`<span class="chip">${state.status === 'drawn' ? 'Estrazione fatta' : 'Iscrizioni aperte'}</span>`);
+  $('#chips').innerHTML = chips.join('');
+}
+
+function renderList(){
+  const drawn = state.status === 'drawn', ps = state.participants;
+  $('#list').innerHTML = ps.length ? ps.map(p => {
+    const n = clip(p.name, 40) || 'Senza nome';
+    const tu = me && p.id === me.id ? ' <span class="mut small">(tu)</span>' : '';
+    const x = isAdmin && !drawn ? `<button class="x" data-rm="${esc(p.id)}">Rimuovi</button>` : '';
+    return `<li><span class="dot">${esc(n[0].toUpperCase())}</span><span class="n">${esc(n)}${tu}</span>${x}</li>`;
+  }).join('') : '<li class="empty mut">Ancora nessuno. Sii il primo!</li>';
+}
+
+function linkBox(){
+  return `<div class="linkbox"><b>Il tuo link personale</b>
+    <p class="small mut" style="margin:4px 0 10px">Salvalo (ad esempio mandalo a te stesso su WhatsApp): serve per vedere il tuo abbinamento da un altro telefono o browser. Non darlo a nessuno!</p>
+    <div class="lrow"><input id="myLink" readonly><button type="button" class="ghost" id="copyB">Copia</button></div></div>`;
+}
+function wireLinkBox(){
+  if (!$('#myLink')) return;
+  $('#myLink').value = myLink();
+  $('#copyB').onclick = async () => {
+    try { await navigator.clipboard.writeText(myLink()); $('#copyB').textContent = 'Copiato ✓'; }
+    catch { $('#myLink').select(); $('#copyB').textContent = 'Selezionato'; }
+  };
+}
+
+function renderMain(force){
+  const c = $('#mainCard');
+  if (!configured) { c.innerHTML = '<h2>Pagina non ancora collegata</h2><p class="mut">Manca la configurazione del database: segui le istruzioni nel file LEGGIMI.</p>'; return; }
+  if (!loaded) return;
+  const drawn = state.status === 'drawn';
+  const m = [drawn, !!me, me?.receiver ? 1 : 0].join('|');
+  if (m === mode && !force) return;
+  mode = m;
+  if (!drawn && !me){
+    c.innerHTML = `<h2>Partecipa allo scambio</h2>
+      <p class="mut">Iscriviti qui. Quando l'organizzatore chiude le iscrizioni, su questa pagina vedrai a chi fare il regalo — solo tu.</p>
+      <form id="joinF">
+        <label for="fName">Il tuo nome</label><input id="fName" maxlength="40" autocomplete="name" required>
+        <label for="fWish">Idee regalo o cose da evitare <span class="mut small">(facoltativo)</span></label>
+        <textarea id="fWish" maxlength="300" placeholder="Es. libri gialli, caffè; niente candele"></textarea>
+        <div class="row"><button class="btn">Iscrivimi</button></div>
+        <div class="msg" id="msg"></div>
+      </form>`;
+    $('#joinF').addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = await App.join($('#fName').value, $('#fWish').value);
+      if (err) $('#msg').textContent = err;
+    });
+  } else if (!drawn && me){
+    c.innerHTML = `<span class="ok">✓ Sei iscritto</span>
+      <h2 style="margin-top:14px">Ora aspettiamo gli altri</h2>
+      <p class="mut">Quando le iscrizioni si chiudono, riapri questa pagina: qui comparirà il nome della persona a cui fare il regalo.</p>
+      ${linkBox()}
+      <form id="editF">
+        <label for="fName">Il tuo nome</label><input id="fName" maxlength="40" required>
+        <label for="fWish">Idee regalo o cose da evitare</label><textarea id="fWish" maxlength="300"></textarea>
+        <div class="row"><button class="btn">Salva modifiche</button><button type="button" class="ghost" id="leaveB">Annulla iscrizione</button></div>
+        <div class="msg" id="msg"></div>
+      </form>`;
+    $('#fName').value = me.name || ''; $('#fWish').value = me.wish || '';
+    wireLinkBox();
+    $('#editF').addEventListener('submit', async e => {
+      e.preventDefault(); if (busy) return; busy = true; $('#msg').textContent = 'Salvataggio…';
+      try { await rpc('update_me', {p_token: token, p_name: $('#fName').value, p_wish: $('#fWish').value}); await refresh(); $('#msg').textContent = 'Salvato.'; }
+      catch (er) { $('#msg').textContent = er.message; }
+      busy = false;
+    });
+    $('#leaveB').addEventListener('click', async () => {
+      if (busy) return; busy = true;
+      try { await rpc('leave_santa', {p_token: token}); token = ''; store.set('ss_token', ''); me = null; await refresh(true); }
+      catch (er) { $('#msg').textContent = er.message; }
+      busy = false;
+    });
+  } else if (drawn && me && me.receiver){
+    c.innerHTML = `<h2>Il tuo abbinamento è pronto</h2>
+      <p class="mut">Gira il cartellino quando nessuno sta guardando lo schermo.</p>
+      <div class="mini"><div class="bubble" id="miniBubble"></div><div id="miniPuppet"></div></div>
+      <div class="tagbox"><div class="tag" id="tag">
+        <div class="face front"><span class="hole"></span><div class="small" style="opacity:.85">Da: <span id="fromName"></span></div><div class="who">Per chi sarà?</div></div>
+        <div class="face back"><span class="hole"></span><div class="small">Fai il regalo a</div><div class="who" id="toName"></div></div>
+      </div></div>
+      <div class="row" style="justify-content:center"><button class="btn" id="flipB">Gira il cartellino</button></div>
+      <div id="wishBox" hidden></div>`;
+    $('#fromName').textContent = clip(me.name, 40);
+    $('#toName').textContent = clip(me.receiver.name, 40);
+    const w = clip(me.receiver.wish, 300), box = $('#wishBox');
+    box.innerHTML = w ? '<label>I suoi desideri</label><div class="wish"></div>' : '<p class="mut small" style="text-align:center">Non ha lasciato indicazioni: vai d’istinto!</p>';
+    if (w) box.querySelector('.wish').textContent = w;
+    const mjaw = Puppet.make($('#miniPuppet'));
+    $('#flipB').addEventListener('click', () => {
+      const t = $('#tag'); t.classList.toggle('open');
+      const o = t.classList.contains('open');
+      $('#flipB').textContent = o ? 'Nascondi' : 'Gira il cartellino';
+      box.hidden = !o;
+      if (o) { Puppet.audio(); Puppet.say(mjaw, $('#miniBubble'), `Ciao ${clip(me.name,40)}! Il tuo regalo è per… ${clip(me.receiver.name,40)}!`); }
+      else { clearInterval(mjaw._t); mjaw.classList.remove('open'); $('#miniBubble').classList.remove('on'); }
+    });
+  } else if (drawn && me){
+    c.innerHTML = `<h2>Ops, non sei nell'estrazione</h2><p class="mut">Probabilmente ti sei iscritto proprio mentre veniva fatta: chiedi all'organizzatore di rifarla.</p>`;
+  } else {
+    c.innerHTML = `<h2>Iscrizioni chiuse</h2><p class="mut">L'estrazione è già stata fatta. Se ti eri iscritto da un altro telefono, apri il tuo link personale.</p>`;
+  }
+}
+
+/* ---------- organiser ---------- */
+function renderAdmin(){
+  const a = $('#admin');
+  if (!isAdminView || !configured) { a.hidden = true; return; }
+  a.hidden = false;
+  if (!isAdmin){
+    a.innerHTML = `<h2>Pannello organizzatore</h2>
+      <form id="loginF" class="lrow" style="max-width:460px"><input id="aPass" type="password" placeholder="Password organizzatore" autocomplete="current-password"><button class="btn">Entra</button></form>
+      <div class="msg" id="amsg"></div>`;
+    $('#loginF').addEventListener('submit', async e => {
+      e.preventDefault(); const p = $('#aPass').value;
+      try { if (await rpc('admin_check', {p_pass: p})) { adminPass = p; try { sessionStorage.setItem('ss_admin', p); } catch {} isAdmin = true; renderAll(); } else $('#amsg').textContent = 'Password sbagliata.'; }
+      catch (er) { $('#amsg').textContent = er.message; }
+    });
+    return;
+  }
+  const drawn = state.status === 'drawn', n = state.participants.length;
+  const keep = {t: $('#aTitle')?.value, b: $('#aBudget')?.value, d: $('#aDate')?.value};
+  const focusId = document.activeElement?.id;
+  a.innerHTML = `<h2>Pannello organizzatore</h2>
+    <p class="mut small">Visibile solo con la password. Il link da mandare a tutti è questo stesso indirizzo senza <code>?admin</code>.</p>
+    <div class="three">
+      <div><label for="aTitle">Nome dell'evento</label><input id="aTitle" maxlength="80" placeholder="Secret Santa"></div>
+      <div><label for="aBudget">Budget</label><input id="aBudget" maxlength="30" placeholder="Es. 20 €"></div>
+      <div><label for="aDate">Data dello scambio</label><input id="aDate" maxlength="40" placeholder="Es. 19 dicembre"></div>
+    </div>
+    <div class="row"><button class="ghost" id="saveB">Salva dettagli</button></div>
+    <div class="row" style="border-top:1px solid var(--line);padding-top:18px">
+      ${drawn
+        ? `<span class="ok">✓ Estrazione fatta per ${n} persone</span><button class="ghost" id="resetB">Annulla e riapri iscrizioni</button>`
+        : `<button class="btn" id="drawB" ${n < 3 ? 'disabled' : ''}>Chiudi iscrizioni ed estrai</button><span class="mut small">${n < 3 ? 'Servono almeno 3 iscritti.' : n + ' iscritti pronti.'}</span>`}
+    </div>
+    ${confirmKind ? `<div class="confirm"><b>${confirmKind === 'draw'
+        ? 'Chiudo le iscrizioni ed estraggo gli abbinamenti per ' + n + ' persone?'
+        : 'Annullo l’estrazione? Gli abbinamenti attuali spariranno e le iscrizioni si riapriranno.'}</b>
+      <div class="row"><button class="btn" id="yesB">Sì, procedi</button><button class="ghost" id="noB">Annulla</button></div></div>` : ''}
+    <div class="msg" id="amsg"></div>`;
+  $('#aTitle').value = keep.t ?? state.title ?? '';
+  $('#aBudget').value = keep.b ?? state.budget ?? '';
+  $('#aDate').value = keep.d ?? state.date ?? '';
+  if (focusId && $('#' + focusId)) $('#' + focusId).focus();
+  const act = async (fn, args, ok) => {
+    if (busy) return; busy = true; $('#amsg').textContent = 'Un attimo…';
+    try { await rpc(fn, {p_pass: adminPass, ...args}); await refresh(true); $('#amsg') && ($('#amsg').textContent = ok); }
+    catch (er) { $('#amsg') && ($('#amsg').textContent = er.message); }
+    busy = false;
+  };
+  $('#saveB').onclick = () => act('admin_save', {p_title: $('#aTitle').value, p_budget: $('#aBudget').value, p_date: $('#aDate').value}, 'Dettagli salvati.');
+  if ($('#drawB')) $('#drawB').onclick = () => { confirmKind = 'draw'; renderAdmin(); };
+  if ($('#resetB')) $('#resetB').onclick = () => { confirmKind = 'reset'; renderAdmin(); };
+  if ($('#noB')) $('#noB').onclick = () => { confirmKind = ''; renderAdmin(); };
+  if ($('#yesB')) $('#yesB').onclick = () => {
+    const k = confirmKind; confirmKind = '';
+    k === 'draw' ? act('admin_draw', {}, 'Fatto! Avvisa il gruppo: riaprite il link per scoprire il vostro abbinamento.')
+                 : act('admin_reset', {}, 'Iscrizioni riaperte.');
+  };
+}
+
+$('#list').addEventListener('click', async e => {
+  const id = e.target.closest('[data-rm]')?.dataset.rm;
+  if (!id || !isAdmin || busy) return;
+  busy = true;
+  try { await rpc('admin_remove', {p_pass: adminPass, p_id: id}); await refresh(true); } catch {}
+  busy = false;
+});
+
+function renderAll(force){ renderHero(); renderList(); renderMain(force); renderAdmin(); }
+
+async function refresh(force){
+  if (!configured) { renderAll(); return; }
+  try {
+    const s = await rpc('public_state');
+    if (s) state = s;
+    if (token) {
+      me = await rpc('me', {p_token: token});
+      if (!me) { token = ''; store.set('ss_token', ''); }
+    }
+    loaded = true; renderAll(force);
+  } catch {
+    if (!loaded) $('#mainCard').innerHTML = '<h2>Connessione lenta</h2><p class="mut">Non riesco a raggiungere il database. Riprova tra poco.</p>';
+  }
+}
+
+/* used by the intro */
+App.status = () => ({joined: !!me, myEntry: me?.name || '', closed: state.status === 'drawn', receiver: me?.receiver?.name || '', meName: me?.name || ''});
+App.join = async (name, wish = '') => {
+  if (!configured) return 'La pagina non è ancora collegata al database.';
+  if (!loaded) return 'Un attimo, sto ancora caricando…';
+  try {
+    const r = await rpc('join_santa', {p_name: name, p_wish: wish});
+    token = r.token; store.set('ss_token', token);
+    await refresh(true);
+    return '';
+  } catch (er) { return er.message; }
+};
+
+(async () => {
+  renderAll();
+  if (adminPass && isAdminView) { try { isAdmin = !!(await rpc('admin_check', {p_pass: adminPass})); } catch {} }
+  await refresh(true);
+  setInterval(() => { if (!document.hidden && !busy) refresh(); }, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+})();
+}
+</script>
+</body>
+</html>
